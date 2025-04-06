@@ -1,4 +1,6 @@
 # импортируем библиотеки
+from logging import getLevelName
+
 from flask import Flask, request, jsonify
 import logging
 
@@ -25,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 # Когда он откажется купить слона,
 # то мы уберем одну подсказку. Как будто что-то меняется :)
 sessionStorage = {}
-
+elephant = False
 
 @app.route('/post', methods=['POST'])
 # Функция получает тело запроса и возвращает ответ.
@@ -56,6 +58,7 @@ def main():
 
 
 def handle_dialog(req, res):
+    global elephant
     user_id = req['session']['user_id']
 
     if req['session']['new']:
@@ -84,16 +87,28 @@ def handle_dialog(req, res):
     # Если он написал 'ладно', 'куплю', 'покупаю', 'хорошо',
     # то мы считаем, что пользователь согласился.
     # Подумайте, всё ли в этом фрагменте написано "красиво"?
-    if any([x in req['request']['original_utterance'].lower()] for x in ['ладно', 'куплю', 'покупаю', 'хорошо']):
-        # Пользователь согласился, прощаемся.
-        res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
-        res['response']['end_session'] = True
-        return
+    if not elephant:
+        if any(x in req['request']['original_utterance'].lower() for x in ['ладно', 'куплю', 'покупаю', 'хорошо']):
+            # Пользователь согласился, прощаемся.
+            res['response']['text'] = 'Слона можно найти на Яндекс.Маркете! Теперь купи кролика!'
+            elephant = True
+            return
+        # Если нет, то убеждаем его купить слона!
+        res['response']['text'] = \
+            f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
+        res['response']['buttons'] = get_suggests(user_id)
+    else:
+        if any(x in req['request']['original_utterance'].lower() for x in ['ладно', 'куплю', 'покупаю', 'хорошо']):
+            # Пользователь согласился, прощаемся.
+            res['response']['text'] = 'Кролика можно найти на Яндекс.Маркете!'
+            res['response']['end_session'] = True
+            elephant = False
+            return
 
-    # Если нет, то убеждаем его купить слона!
-    res['response']['text'] = \
-        f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
-    res['response']['buttons'] = get_suggests(user_id)
+        # Если нет, то убеждаем его купить слона!
+        res['response']['text'] = \
+            f"Все говорят '{req['request']['original_utterance']}', а ты купи кролика!"
+        res['response']['buttons'] = get_suggests(user_id)
 
 
 # Функция возвращает две подсказки для ответа.
